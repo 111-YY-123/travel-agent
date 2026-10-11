@@ -36,6 +36,7 @@ graph TD
     BR -->|通过 / 重试上限| FIN[Finalizer 汇总]
     FIN --> END([最终行程单])
 
+ ```
 ## 🛠️ 技术栈
 
 | 层 | 技术 |
