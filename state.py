@@ -16,6 +16,7 @@ class TravelState(TypedDict):                           #可改为MessagesState
     days: int                                           # 出行天数
     travelers: int                                      # 出行人数
     budget: float                                       # 用户总预算（不是人均）
+    start_date: str                                     # 出行开始日期
     preferences: list[str]                              # 偏好：美食/自然/人文/商业
     transport_preference: Optional[str]                 # 交通偏好：自驾/高铁/飞机/大巴
 
@@ -49,6 +50,7 @@ class TravelIntent(BaseModel):
     days: Optional[int] = Field(None, description="出行天数，没提则 null")
     travelers: Optional[int] = Field(default=1, description="出行人数，没提则为 1")
     budget: Optional[float] = Field(None,description="用户总预算（元），不是人均")
+    start_date: Optional[str] = Field(None,description="行程起始日期，格式 YYYY-MM-DD。用户说'下周五''10月20号'都要换算成具体日期。没提则为 null")
     preferences: list[str] = Field(
         default_factory = lambda: ["美食", "自然", "人文", "商业"],
         description="偏好列表，用户明确不要的项从中去掉"

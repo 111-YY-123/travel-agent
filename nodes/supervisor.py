@@ -1,11 +1,12 @@
 # nodes/supervisor.py
-from typing import Literal
+from typing import Literal, Optional
 from langgraph.runtime import Runtime
 from langgraph.types import Command, Send, interrupt
 from state import TravelState, TravelIntent
 from llm import structured_supervisor
 from prompts_loader import SUPERVISOR_PROMPT
 from utils.logger_handler import get_logger
+from datetime import datetime, timedelta
 
 logger = get_logger("travel")
 
@@ -47,6 +48,17 @@ def _sanitize_preferences(preferences):
         cleaned = list(_DEFAULT_PREFS)
     return cleaned
 
+def _resolve_start_date(raw_date: Optional[str]) -> str:
+    """把 LLM 解析的日期字符串规范化，缺省用今天。"""
+    if not raw_date:
+        return datetime.now().strftime("%Y-%m-%d")
+    try:
+        dt = datetime.strptime(raw_date, "%Y-%m-%d")
+        return dt.strftime("%Y-%m-%d")
+    except ValueError:
+        logger.warning(f"start_date 格式非法：{raw_date}，用今天代替")
+        return datetime.now().strftime("%Y-%m-%d")
+
 async def supervisor_node(
     state: TravelState, runtime: Runtime
 ) -> Command[Literal["food_node", "nature_node", "culture_node", "business_node", "__end__"]]:
@@ -63,7 +75,10 @@ async def supervisor_node(
     logger.info(f"supervisor 开始 | user_request={state['user_request'][:50]}")
 
     intent: TravelIntent = await structured_supervisor.ainvoke(
-        SUPERVISOR_PROMPT.format(user_request=state["user_request"])
+        SUPERVISOR_PROMPT.format(
+            user_request=state["user_request"],
+            today=datetime.now().strftime("%Y-%m-%d")
+        )
     )
 
     logger.debug(f"LLM 解析结果 | {intent.model_dump()}")
@@ -74,10 +89,9 @@ async def supervisor_node(
     days = intent.days or state.get("days") or 3
     travelers = intent.travelers or state.get("travelers") or 1
     budget = intent.budget if intent.budget is not None else state.get("budget")  
+    start_date = _resolve_start_date(intent.start_date or state.get("start_date"))
     transport_preference = intent.transport_preference or state.get("transport_preference")
-    preferences = _sanitize_preferences(
-        intent.preferences or state.get("preferences")
-    )
+    preferences = _sanitize_preferences(intent.preferences or state.get("preferences"))
     days, travelers, budget = _validate_fields(days, travelers, budget)
 
     user_request_final = state["user_request"]
@@ -100,7 +114,10 @@ async def supervisor_node(
 
         user_request_final = state.get("user_request", "") + f"。补充：{user_reply}"
         intent = await structured_supervisor.ainvoke(
-            SUPERVISOR_PROMPT.format(user_request=user_request_final)
+            SUPERVISOR_PROMPT.format(
+                user_request=user_request_final,
+                today=datetime.now().strftime("%Y-%m-%d")
+            )
         )
 
         logger.debug(f"重解析结果 | {intent.model_dump()}") 
@@ -110,6 +127,7 @@ async def supervisor_node(
         days = intent.days or days
         travelers = intent.travelers or travelers
         budget = intent.budget if intent.budget is not None else budget
+        start_date = _resolve_start_date(intent.start_date or start_date)
         preferences = _sanitize_preferences(intent.preferences or preferences)
         transport_preference = intent.transport_preference or transport_preference  
 
@@ -141,6 +159,7 @@ async def supervisor_node(
         "days": days,
         "travelers": travelers,
         "budget": budget,
+        "start_date": start_date,
         "preferences": preferences,
         "transport_preference": transport_preference,
         "candidate_plans": ["__RESET__"],# 通过 Command(update) 传给 plans_reducer 触发清空

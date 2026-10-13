@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 load_dotenv()
-
+import uuid
 import asyncio
 from graph import init_checkpointer
 from langgraph.types import Command
@@ -11,7 +11,7 @@ async def main():
 
     try:
         user_input = input("请输入您的旅行计划：")
-        config = {"configurable": {"thread_id": "cli-test"}}
+        config = {"configurable": {"thread_id": f"cli-{uuid.uuid4().hex[:8]}"}}
         graph_input = {"user_request": user_input}
 
         while True:
