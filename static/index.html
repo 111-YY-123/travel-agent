@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>多智能体旅游规划师</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f0f2f5;
+    margin: 0;
+    padding: 40px 20px;
+    color: #1a1a1a;
+  }
+  .container { max-width: 900px; margin: 0 auto; }
+  .header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  h1 { font-size: 24px; margin: 0; }
+  #new-session-btn {
+    padding: 6px 14px;
+    font-size: 13px;
+    background: transparent;
+    color: #666;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  #new-session-btn:hover:not(:disabled) { background: #fff; color: #1e80ff; border-color: #1e80ff; }
+  #new-session-btn:disabled { cursor: not-allowed; opacity: 0.5; }
+  .subtitle { color: #666; font-size: 14px; margin-bottom: 4px; }
+  .thread-id { color: #aaa; font-size: 12px; margin-bottom: 20px; font-family: monospace; }
+
+  .input-box {
+    display: flex;
+    gap: 10px;
+    background: #fff;
+    padding: 12px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  #user-input {
+    flex: 1;
+    padding: 12px 16px;
+    font-size: 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  #user-input:focus { border-color: #1e80ff; }
+  #user-input:disabled { background: #f5f5f5; cursor: not-allowed; }
+  #submit-btn {
+    padding: 12px 32px;
+    background: #1e80ff;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  #submit-btn:hover:not(:disabled) { background: #1666cc; }
+  #submit-btn:disabled { background: #b0c4de; cursor: not-allowed; }
+
+  .section {
+    margin-top: 20px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    min-height: 60px;
+  }
+  .section-title {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  #progress { font-size: 14px; color: #555; line-height: 1.9; }
+  #progress div { padding: 2px 0; animation: fadeIn 0.3s ease; }
+  #output {
+    font-size: 15px;
+    line-height: 1.85;
+    white-space: pre-wrap;
+    word-break: break-word;
+    min-height: 40px;
+  }
+  #output.error { color: #e74c3c; }
+  .placeholder { color: #bbb; font-style: italic; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .cursor::after {
+    content: "▋";
+    color: #1e80ff;
+    animation: blink 1s infinite;
+    margin-left: 2px;
+  }
+  @keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+  }
+
+  /* 中断输入区 */
+  #interrupt-box {
+    display: none;
+    margin-top: 16px;
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    border-radius: 12px;
+    padding: 16px 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  #interrupt-box.visible { display: block; animation: fadeIn 0.3s ease; }
+  #interrupt-question {
+    font-size: 14px;
+    color: #8a6d00;
+    margin-bottom: 10px;
+    font-weight: 500;
+  }
+  .interrupt-input-row { display: flex; gap: 8px; }
+  #interrupt-input {
+    flex: 1;
+    padding: 10px 14px;
+    font-size: 14px;
+    border: 1px solid #ffe082;
+    border-radius: 8px;
+    outline: none;
+  }
+  #interrupt-input:focus { border-color: #ffb300; }
+  #interrupt-submit {
+    padding: 10px 24px;
+    background: #ffb300;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  #interrupt-submit:hover:not(:disabled) { background: #ffa000; }
+  #interrupt-submit:disabled { background: #ffe082; cursor: not-allowed; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>多智能体旅游规划师</h1>
+    <button id="new-session-btn" title="清空当前会话，开始新的规划">＋ 新会话</button>
+  </div>
+  <div class="subtitle">输入你的旅行需求，让我为你规划行程</div>
+  <div class="thread-id" id="thread-id-display"></div>
+
+  <div class="input-box">
+    <input id="user-input" placeholder="例：从上海去武汉玩，4个人共4000元" />
+    <button id="submit-btn">开始规划</button>
+  </div>
+
+  <div class="section">
+    <div class="section-title">执行进度</div>
+    <div id="progress"><span class="placeholder">等待中...</span></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">行程单</div>
+    <div id="output"><span class="placeholder">等待中...</span></div>
+  </div>
+
+  <div id="interrupt-box">
+    <div id="interrupt-question"></div>
+    <div class="interrupt-input-row">
+      <input id="interrupt-input" placeholder="请输入补充信息..." />
+      <button id="interrupt-submit">提交</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const input = document.getElementById('user-input');
+const btn = document.getElementById('submit-btn');
+const newSessionBtn = document.getElementById('new-session-btn');
+const progressEl = document.getElementById('progress');
+const outputEl = document.getElementById('output');
+const threadIdDisplay = document.getElementById('thread-id-display');
+const interruptBox = document.getElementById('interrupt-box');
+const interruptQuestion = document.getElementById('interrupt-question');
+const interruptInput = document.getElementById('interrupt-input');
+const interruptSubmit = document.getElementById('interrupt-submit');
+
+// ============ 1. 生成 / 获取 thread_id ============
+function newThreadId() {
+  return 'user-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+}
+
+let currentThreadId = localStorage.getItem('travel_thread_id');
+if (!currentThreadId) {
+  currentThreadId = newThreadId();
+  localStorage.setItem('travel_thread_id', currentThreadId);
+}
+threadIdDisplay.textContent = '会话 ID: ' + currentThreadId;
+console.log('[thread_id]', currentThreadId);
+
+// ============ 2. 状态变量 ============
+let progressCleared = false;
+let outputStarted = false;
+let scrollScheduled = false;
+let receivedFinal = false;
+
+function resetUI() {
+  progressEl.innerHTML = '<span class="placeholder">等待中...</span>';
+  outputEl.innerHTML = '<span class="placeholder">等待中...</span>';
+  outputEl.classList.remove('error', 'cursor');
+  progressCleared = false;
+  outputStarted = false;
+  receivedFinal = false;
+  hideInterruptBox();
+}
+
+function startOutput() {
+  if (!outputStarted) {
+    outputEl.innerHTML = '';
+    outputStarted = true;
+    outputEl.classList.add('cursor');
+  }
+}
+
+function clearProgressOnce() {
+  if (!progressCleared) {
+    progressEl.innerHTML = '';
+    progressCleared = true;
+  }
+}
+
+// ============ 3. 滚动节流 ============
+function scheduleScroll() {
+  if (scrollScheduled) return;
+  scrollScheduled = true;
+  requestAnimationFrame(() => {
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    scrollScheduled = false;
+  });
+}
+
+// ============ 4. 中断输入框控制 ============
+function showInterruptBox(question) {
+  interruptQuestion.textContent = question; // 去掉 Emoji
+  interruptInput.value = '';
+  interruptBox.classList.add('visible');
+  interruptInput.focus();
+  btn.disabled = true;
+  btn.textContent = '等待补充...';
+  input.disabled = true;
+  newSessionBtn.disabled = true;
+}
+
+function hideInterruptBox() {
+  interruptBox.classList.remove('visible');
+}
+
+async function submitInterrupt() {
+  const reply = interruptInput.value.trim();
+  if (!reply) return;
+  interruptSubmit.disabled = true;
+  hideInterruptBox();
+  await resumeTravel(reply);
+  interruptSubmit.disabled = false;
+}
+
+// ============ 5. 统一处理 SSE 流 ============
+async function processStream(response) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+
+    const parts = buffer.split('\n\n');
+    buffer = parts.pop();
+
+    for (const part of parts) {
+      if (!part.startsWith('data: ')) continue;
+      const jsonStr = part.slice(6);
+      let payload;
+      try {
+        payload = JSON.parse(jsonStr);
+      } catch (e) {
+        console.warn('解析失败:', jsonStr);
+        continue;
+      }
+      handleEvent(payload);
+    }
+  }
+}
+
+// ============ 6. 发新请求 ============
+async function planTravel() {
+  const userRequest = input.value.trim();
+  if (!userRequest) {
+    alert('请输入旅行需求');
+    return;
+  }
+
+  input.disabled = true;
+  btn.disabled = true;
+  newSessionBtn.disabled = true;
+  btn.textContent = '规划中...';
+  resetUI();
+
+  try {
+    const response = await fetch('/travel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_request: userRequest,
+        thread_id: currentThreadId,
+      }),
+    });
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    await processStream(response);
+  } catch (e) {
+    outputEl.classList.add('error');
+    outputEl.textContent = '请求失败：' + e.message;
+  } finally {
+    const isInterrupted = interruptBox.classList.contains('visible');
+    if (!isInterrupted) {
+      input.disabled = false;
+      btn.disabled = false;
+      newSessionBtn.disabled = false;
+      btn.textContent = '开始规划';
+    }
+    outputEl.classList.remove('cursor');
+  }
+}
+
+// ============ 7. 发恢复请求 ============
+async function resumeTravel(userReply) {
+  receivedFinal = false;
+  
+  progressEl.innerHTML = '<div>正在恢复中断...</div>';
+  outputEl.innerHTML = '';
+  outputStarted = false;
+  progressCleared = false;
+
+  try {
+    const response = await fetch('/travel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        thread_id: currentThreadId,
+        resume: userReply,
+      }),
+    });
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    await processStream(response);
+  } catch (e) {
+    outputEl.classList.add('error');
+    outputEl.textContent = '恢复失败：' + e.message;
+  } finally {
+    const isInterrupted = interruptBox.classList.contains('visible');
+    if (!isInterrupted) {
+      input.disabled = false;
+      btn.disabled = false;
+      newSessionBtn.disabled = false;
+      btn.textContent = '开始规划';
+    }
+    outputEl.classList.remove('cursor');
+  }
+}
+
+// ============ 8. 事件处理 ============
+function handleEvent(payload) {
+  switch (payload.type) {
+    case 'progress':
+      if (outputStarted) break;
+      clearProgressOnce();
+      const line = document.createElement('div');
+      line.textContent = '› ' + payload.content; // 这里的箭头符号属于排版符号，不是表情，予以保留
+      progressEl.appendChild(line);
+      break;
+
+    case 'token':
+      startOutput();
+      outputEl.textContent += payload.content;
+      scheduleScroll();
+      break;
+
+    case 'final':
+      outputEl.classList.remove('cursor');
+      outputEl.textContent = payload.content;
+      outputStarted = true;
+      receivedFinal = true;
+      break;
+
+    case 'interrupt':
+      const question = (payload.content && payload.content.question) || '请补充信息：';
+      showInterruptBox(question);
+      break;
+
+    case 'error':
+      outputEl.classList.add('error');
+      outputEl.classList.remove('cursor');
+      outputEl.textContent = '错误：' + payload.content;
+      break;
+
+    case 'done':
+      outputEl.classList.remove('cursor');
+      if (!receivedFinal && !outputStarted && !interruptBox.classList.contains('visible')) {
+        outputEl.classList.add('error');
+        outputEl.textContent = '未能生成行程。可能未识别到目的地，或补充信息为空。请重新描述需求。';
+      }
+      break;
+  }
+}
+
+// ============ 9. 新会话 ============
+function startNewSession() {
+  currentThreadId = newThreadId();
+  localStorage.setItem('travel_thread_id', currentThreadId);
+  threadIdDisplay.textContent = '会话 ID: ' + currentThreadId;
+  input.value = '';
+  resetUI();
+  console.log('[new thread_id]', currentThreadId);
+}
+
+// ============ 10. 事件绑定 ============
+btn.addEventListener('click', planTravel);
+
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter') planTravel();
+});
+
+newSessionBtn.addEventListener('click', startNewSession);
+
+interruptSubmit.addEventListener('click', submitInterrupt);
+interruptInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitInterrupt();
+});
+</script>
+
+</body>
+</html>
