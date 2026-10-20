@@ -24,7 +24,8 @@ if not _BASE_URL:
     )
 
 _LLM_CONFIG = {
-    "model": "qwen3.8-flash",
+    #"model": "qwen3.8-flash",
+    "model": "deepseek-v4-flash",
     "api_key":  _API_KEY,
     "base_url": _BASE_URL,
     "temperature": 0.3,        # 规划类任务用低温，稳定输出

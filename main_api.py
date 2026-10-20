@@ -62,17 +62,17 @@ async def event_generator(req: TravelInput):
         else:
             graph_input = {"user_request": req.user_request}
 
-        async for event in graph.astream(
+        async for namespace, mode, data in graph.astream(
             graph_input,
             config=config,
             stream_mode=["messages", "custom", "values"],
+            subgraphs=True,
         ):
-            mode, data = event
 
             if mode == "messages":
                 chunk, metadata = data
                 node_name = metadata.get("langgraph_node", "")
-                if node_name in ("synthesizer", "finalizer") and chunk.content:
+                if node_name == "finalizer" and chunk.content:
                     content = chunk.content
                     # 处理 list 类型（多模态 content 块）
                     if isinstance(content, list):

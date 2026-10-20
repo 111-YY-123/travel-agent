@@ -18,19 +18,25 @@ async def main():
             interrupted = False
             interrupt_info = None
 
-            async for event in graph.astream(
+            async for namespace, mode, data in graph.astream(
                 graph_input,
                 config=config,
                 stream_mode=["messages", "custom", "values"],
+                subgraphs=True,
             ):
-                mode, data = event
                 if mode == "messages":
                     chunk, metadata = data
                     node_name = metadata.get("langgraph_node", "")
-                    if node_name in ("synthesizer", "finalizer") and chunk.content:
+                    if node_name == "finalizer" and chunk.content:
                         content = chunk.content
                         if isinstance(content, list):
-                            content = "".join(str(item) for item in content)
+                            parts = []
+                            for item in content:
+                                if isinstance(item, str):
+                                    parts.append(item)
+                                elif isinstance(item, dict) and "text" in item:
+                                    parts.append(item["text"])
+                            content = "".join(parts)
                         print(content, end="", flush=True)
                 elif mode == "custom":
                     print(f"\n[进度] {data}")
