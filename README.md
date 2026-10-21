@@ -11,7 +11,7 @@
 - **高并发限流与缓存**：针对高德 API 的 QPS 限制，实现了基于 `asyncio` 的令牌桶限流器；同时为搜索工具加入了短时内存缓存，降低外部接口压力。
 - **SSE 双通道流式输出**：一个 SSE 连接同时推送两类事件，内容通道推 LLM token（打字机效果），控制通道推节点执行进度与中断信号。
 
-## 📸 系统动态演示
+## 系统动态演示
 
 ### 1. 正常全景规划 (多智能体并发 & SSE 打字机效果)
 > 真实接入高德地图与天气 API。Supervisor 并行派发 4 个规划师，前端通过 SSE 实时接收进度与流式文本。
@@ -21,7 +21,7 @@
 </p>
 
 <details>
-  <summary>👉 点击查看真实数据驱动的最终行程单</summary>
+  <summary>点击查看真实数据驱动的最终行程单</summary>
   <p align="center">
     <img src="./assets/最终行程单截图.png" width="800" alt="行程单结果截图">
   </p>
@@ -115,7 +115,7 @@ python main_api.py
 python main.py
 ```
 
-## 📁 目录结构
+## 目录结构
 
 ```
 Travel_agent/
