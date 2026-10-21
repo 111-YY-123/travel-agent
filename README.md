@@ -11,6 +11,36 @@
 - **高并发限流与缓存**：针对高德 API 的 QPS 限制，实现了基于 `asyncio` 的令牌桶限流器；同时为搜索工具加入了短时内存缓存，降低外部接口压力。
 - **SSE 双通道流式输出**：一个 SSE 连接同时推送两类事件，内容通道推 LLM token（打字机效果），控制通道推节点执行进度与中断信号。
 
+## 📸 系统动态演示
+
+### 1. 正常全景规划 (多智能体并发 & SSE 打字机效果)
+> 真实接入高德地图与天气 API。Supervisor 并行派发 4 个规划师，前端通过 SSE 实时接收进度与流式文本。
+
+<p align="center">
+  <img src="./assets/前端打字机演示.gif" width="800" alt="前端交互演示">
+</p>
+
+<details>
+  <summary>👉 点击查看真实数据驱动的最终行程单</summary>
+  <p align="center">
+    <img src="./assets/最终行程单截图.png" width="800" alt="行程单结果截图">
+  </p>
+</details>
+
+### 2. 极限预算逼出 Reflection 闭环 (动态打回降级)
+> 当方案超出预算时，`budget_reviewer` 节点通过 `Command` 将任务打回住宿/交通节点。大模型接收重试指令后，自动将住宿降级，直到满足预算。
+
+<p align="center">
+  <img src="./assets/预算打回重写终端.gif" width="800" alt="预算打回重写演示">
+</p>
+
+### 3. 缺失信息中断恢复 (Human-in-the-loop)
+> 结合 PostgresSaver，在缺少目的地时挂起图，前端弹窗收集信息后无损恢复执行。
+
+<p align="center">
+  <img src="./assets/弹窗中断恢复.gif" width="800" alt="中断恢复演示">
+</p>
+
 ## 架构
 
 ```mermaid
